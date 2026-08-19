@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>PO PDF → Excel</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;color:#111827;background:#f3f4f6}
+*{box-sizing:border-box}body{margin:0}main{width:min(760px,100%);margin:auto;padding:28px 16px 50px}
+.hero{text-align:center;padding:22px 8px 18px}.logo{width:68px;height:68px;margin:auto;display:grid;place-items:center;border-radius:18px;background:#111827;color:#fff;font-size:34px}
+h1{font-size:34px;margin:16px 0 8px}.hero p{color:#6b7280;line-height:1.5}.card{background:#fff;border-radius:20px;padding:18px;margin-top:16px;box-shadow:0 8px 30px rgba(0,0,0,.06)}
+.drop{min-height:180px;border:2px dashed #9ca3af;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;cursor:pointer}
+.drop input{display:none}.drop span{color:#6b7280;font-size:14px}button{width:100%;border:0;border-radius:13px;padding:15px;font-size:17px;font-weight:700;background:#111827;color:#fff;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}.file{display:flex;justify-content:space-between;padding:10px 2px;border-bottom:1px solid #e5e7eb;font-size:14px;gap:12px}
+.status{padding:14px 0;color:#4b5563}.result{padding:13px;background:#f9fafb;border-radius:12px;margin-top:10px}.result a{display:inline-block;margin-top:7px;color:#111827;font-weight:700}
+h2{margin-top:0}.info p{color:#4b5563;line-height:1.5}code{background:#f3f4f6;padding:2px 5px;border-radius:5px}.error{color:#b91c1c}
+</style>
+</head>
+<body>
+<main>
+<section class="hero"><div class="logo">⇩</div>
+<h1>PO PDF → Excel</h1>
+<p>Upload one or more purchase-order PDFs and create a separate Excel file for each PDF.</p></section>
+<section class="card">
+<label class="drop"><input id="files" type="file" accept="application/pdf,.pdf" multiple>
+<strong>Tap here to select PO PDF files</strong><span>iPhone • iPad • Android • PC</span></label>
+<div id="selected"></div><button id="convert" disabled>Convert to Excel</button>
+<div id="status" class="status"></div><div id="results"></div>
+</section>
+<section class="card info"><h2>Excel columns</h2>
+<p><b>SR No</b> • <b>Barcode</b> • <b>Product Description</b> • <b>Qty</b> • <b>PO Number</b> • <b>MRP</b> • <b>Category Name</b></p>
+<p><b>Barcode rule:</b> the T-code after <code>/</code>, for example <code>T0017521</code>.</p>
+<p>Each PDF creates its own Excel file named <code>Vendor Name_PO Number.xlsx</code>.</p></section>
+</main>
+<script>
+const picker=document.getElementById("files"),selected=document.getElementById("selected"),convert=document.getElementById("convert"),status=document.getElementById("status"),results=document.getElementById("results");
+let chosen=[];
+picker.addEventListener("change",()=>{chosen=[...picker.files];selected.innerHTML=chosen.map(f=>`<div class="file"><span>${esc(f.name)}</span><span>${size(f.size)}</span></div>`).join("");convert.disabled=!chosen.length;status.textContent="";results.innerHTML=""});
+convert.addEventListener("click",async()=>{if(!chosen.length)return;convert.disabled=true;status.textContent="Processing PDF(s)…";status.classList.remove("error");results.innerHTML="";
+const form=new FormData();chosen.forEach(f=>form.append("files",f));
+try{const r=await fetch("/api/process",{method:"POST",body:form}),data=await r.json();if(!r.ok)throw new Error(data.error||"Processing failed.");
+status.textContent=`${data.files.length} Excel file(s) created.`;
+data.files.forEach(item=>{const div=document.createElement("div");div.className="result";div.innerHTML=`<b>${esc(item.filename)}</b><div>${item.rows} line item(s)</div><a href="/api/download?path=${encodeURIComponent(item.path)}">Download Excel</a>`;results.appendChild(div)})}
+catch(e){status.textContent="Error: "+e.message;status.classList.add("error")}finally{convert.disabled=!chosen.length}});
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function size(n){return n<1024?n+" B":n<1048576?(n/1024).toFixed(1)+" KB":(n/1048576).toFixed(1)+" MB"}
+</script>
+</body>
+</html>
